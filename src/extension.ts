@@ -1,10 +1,38 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { promises as fs } from 'fs';
 
 interface AuthResponse {
+    code?: number;
+    method?: string;
+    message?: string;
+    data?: {
+        id: number;
+        email: string;
+        otp: string | null;
+        validate_email: number;
+        createdAt: string;
+    }[];
     token?: string;
     error?: string;
+}
+
+interface ChatResponse {
+    code?: number;
+    message?: string;
+    data?: string;
+    error?: string;
+}
+
+interface ChatRequestBody {
+    intelligence: string;
+    message: string;
+    files: ChatFile[];
+}
+
+interface ChatFile {
+    type: string;
+    filename: string;
+    content: string;
 }
 
 /**
@@ -34,7 +62,7 @@ export function activate(context: vscode.ExtensionContext) {
                         const email = message.email;
                         const authResult = await authenticateUser(email);
 
-                        if (authResult.token) {
+                        if (authResult.code === 200) {
                             await context.globalState.update('authToken', authResult.token);
                             vscode.window.showInformationMessage('Ingreso exitoso.');
                             panel.dispose();
@@ -57,10 +85,10 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 }
 
-export function deactivate() {}
+export function deactivate() { }
 
 async function authenticateUser(email: string): Promise<AuthResponse> {
-    const authEndpoint = 'https://wslamineia.academys.io:4800/ws/auth/login';
+    const authEndpoint = 'https://t509j8s7-4800.use2.devtunnels.ms/ws/auth/login';
 
     try {
         const response = await fetch(authEndpoint, {
@@ -80,9 +108,52 @@ async function authenticateUser(email: string): Promise<AuthResponse> {
         }
 
         const data = await response.json() as { token?: string };
-        return { token: data.token };
+        return { token: data.token, code: 200 };
     } catch (error: any) {
         return { error: `Error de red: ${error.message}` };
+    }
+}
+
+async function sendChatRequest(token: string | undefined, pregunta: string, archivos: string[]): Promise<ChatResponse> {
+    const chatEndpoint = 'https://t509j8s7-4800.use2.devtunnels.ms/ws/chat';
+
+    if (!token) {
+        return { error: 'No se ha iniciado sesión.' };
+    }
+
+    const requestBody: ChatRequestBody = {
+        intelligence: 'groq',
+        message: pregunta,
+        files: archivos.map(file => ({
+            type: path.extname(file).substring(1) || 'txt', // Obtener la extensión del archivo
+            filename: path.basename(file),
+            content: '' // El contenido del archivo se leerá en el backend presumiblemente
+        }))
+    };
+
+    try {
+        const response = await fetch(chatEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            if (typeof errorData === 'object' && errorData !== null && 'message' in errorData) {
+                return { error: (errorData as { message: string }).message || `Error al enviar la pregunta: ${response.status}` };
+            }
+            return { error: `Error al enviar la pregunta: ${response.status}` };
+        }
+
+        const data = await response.json() as ChatResponse;
+        return data;
+
+    } catch (error: any) {
+        return { error: `Error de red al enviar la pregunta: ${error.message}` };
     }
 }
 
@@ -109,12 +180,21 @@ async function showMainPanel(context: vscode.ExtensionContext) {
     panel.webview.html = getMainPanelContent(panel.webview, filePaths, context);
 
     panel.webview.onDidReceiveMessage(async message => {
+        const sessionToken = context.globalState.get<string>('authToken');
         switch (message.command) {
             case 'enviarPregunta':
                 const pregunta = message.pregunta;
                 const archivoSeleccionado = message.archivo;
                 vscode.window.showInformationMessage(`Pregunta "${pregunta}" enviada para el archivo: ${archivoSeleccionado}`);
-                // TODO: Implementar la lógica para procesar la pregunta y el archivo
+                const chatResult = await sendChatRequest(sessionToken, pregunta, [archivoSeleccionado]);
+                console.log('Resultado de sendChatRequest:', chatResult);
+                if (chatResult.code === 200 && chatResult.data) {
+                    panel.webview.postMessage({ command: 'mostrarRespuesta', respuesta: chatResult.data });
+                } else if (chatResult.error) {
+                    vscode.window.showErrorMessage(`Error al enviar la pregunta: ${chatResult.error}`);
+                } else {
+                    vscode.window.showErrorMessage('Error desconocido al enviar la pregunta.');
+                }
                 break;
             case 'seleccionarArchivo':
                 const archivo = message.archivo;
@@ -195,11 +275,15 @@ function getMainPanelContent(webview: vscode.Webview, filePaths: string[], conte
         <textarea id="pregunta" rows="5" placeholder="Escribe tu consulta aquí"></textarea>
         <br>
         <button id="enviar">Enviar Consulta</button>
+        <hr>
+        <h3>Respuesta</h3>
+        <textarea id="respuesta" rows="10" readonly placeholder="La respuesta del servicio aparecerá aquí"></textarea>
 
         <script nonce="${nonce}">
             const vscode = acquireVsCodeApi();
             const enviarButton = document.getElementById('enviar');
             const preguntaInput = document.getElementById('pregunta');
+            const respuestaInput = document.getElementById('respuesta');
             const fileItems = document.querySelectorAll('.file-item');
             let selectedFile = '';
 
@@ -222,8 +306,18 @@ function getMainPanelContent(webview: vscode.Webview, filePaths: string[], conte
                         pregunta: pregunta
                     });
                     preguntaInput.value = '';
+                    respuestaInput.value = 'Cargando...'; // Mostrar un indicador de carga
                 } else {
                     alert('Por favor, selecciona un archivo y escribe tu consulta.');
+                }
+            });
+
+            window.addEventListener('message', event => {
+                const message = event.data;
+                switch (message.command) {
+                    case 'mostrarRespuesta':
+                        respuestaInput.value = message.respuesta;
+                        break;
                 }
             });
         </script>

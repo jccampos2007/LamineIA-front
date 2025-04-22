@@ -55,7 +55,7 @@ function activate(context) {
                     case 'login':
                         const email = message.email;
                         const authResult = await authenticateUser(email);
-                        if (authResult.token) {
+                        if (authResult.code === 200) {
                             await context.globalState.update('authToken', authResult.token);
                             vscode.window.showInformationMessage('Ingreso exitoso.');
                             panel.dispose();
@@ -98,10 +98,58 @@ async function authenticateUser(email) {
             return { error: `Error de autenticación: ${response.status}` };
         }
         const data = await response.json();
-        return { token: data.token };
+        return { token: data.token, code: 200 };
     }
     catch (error) {
         return { error: `Error de red: ${error.message}` };
+    }
+}
+async function sendChatRequest(token, pregunta, archivos) {
+    const chatEndpoint = 'https://wslamineia.academys.io:4800/ws/chat';
+    if (!token) {
+        return { error: 'No se ha iniciado sesión.' };
+    }
+    const filesToSend = [];
+    for (const file of archivos) {
+        try {
+            const uri = vscode.Uri.file(path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, file));
+            const document = await vscode.workspace.openTextDocument(uri);
+            filesToSend.push({
+                filename: path.basename(file),
+                content: document.getText()
+            });
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error al leer el archivo ${file}: ${error.message}`);
+            return { error: `Error al leer el archivo ${file}: ${error.message}` };
+        }
+    }
+    const requestBody = {
+        intelligence: 'groq',
+        message: pregunta,
+        files: filesToSend
+    };
+    try {
+        const response = await fetch(chatEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(requestBody),
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            if (typeof errorData === 'object' && errorData !== null && 'message' in errorData) {
+                return { error: errorData.message || `Error al enviar la pregunta: ${response.status}` };
+            }
+            return { error: `Error al enviar la pregunta: ${response.status}` };
+        }
+        const data = await response.json();
+        return data;
+    }
+    catch (error) {
+        return { error: `Error de red al enviar la pregunta: ${error.message}` };
     }
 }
 async function showMainPanel(context) {
@@ -119,12 +167,23 @@ async function showMainPanel(context) {
     });
     panel.webview.html = getMainPanelContent(panel.webview, filePaths, context);
     panel.webview.onDidReceiveMessage(async (message) => {
+        const sessionToken = context.globalState.get('authToken');
         switch (message.command) {
             case 'enviarPregunta':
                 const pregunta = message.pregunta;
                 const archivoSeleccionado = message.archivo;
                 vscode.window.showInformationMessage(`Pregunta "${pregunta}" enviada para el archivo: ${archivoSeleccionado}`);
-                // TODO: Implementar la lógica para procesar la pregunta y el archivo
+                const chatResult = await sendChatRequest(sessionToken, pregunta, [archivoSeleccionado]);
+                console.log('Resultado de sendChatRequest:', chatResult);
+                if (chatResult.code === 200 && chatResult.data) {
+                    panel.webview.postMessage({ command: 'mostrarRespuesta', respuesta: chatResult.data });
+                }
+                else if (chatResult.error) {
+                    vscode.window.showErrorMessage(`Error al enviar la pregunta: ${chatResult.error}`);
+                }
+                else {
+                    vscode.window.showErrorMessage('Error desconocido al enviar la pregunta.');
+                }
                 break;
             case 'seleccionarArchivo':
                 const archivo = message.archivo;
@@ -200,11 +259,15 @@ function getMainPanelContent(webview, filePaths, context) {
         <textarea id="pregunta" rows="5" placeholder="Escribe tu consulta aquí"></textarea>
         <br>
         <button id="enviar">Enviar Consulta</button>
+        <hr>
+        <h3>Respuesta</h3>
+        <textarea id="respuesta" rows="10" readonly placeholder="La respuesta del servicio aparecerá aquí"></textarea>
 
         <script nonce="${nonce}">
             const vscode = acquireVsCodeApi();
             const enviarButton = document.getElementById('enviar');
             const preguntaInput = document.getElementById('pregunta');
+            const respuestaInput = document.getElementById('respuesta');
             const fileItems = document.querySelectorAll('.file-item');
             let selectedFile = '';
 
@@ -218,7 +281,7 @@ function getMainPanelContent(webview, filePaths, context) {
                 });
             });
 
-            enviarButton.addEventListener('click', () => {
+            enviarButton.addEventListener('click', async () => {
                 const pregunta = preguntaInput.value;
                 if (selectedFile && pregunta) {
                     vscode.postMessage({
@@ -227,8 +290,18 @@ function getMainPanelContent(webview, filePaths, context) {
                         pregunta: pregunta
                     });
                     preguntaInput.value = '';
+                    respuestaInput.value = 'Cargando...'; // Mostrar un indicador de carga
                 } else {
                     alert('Por favor, selecciona un archivo y escribe tu consulta.');
+                }
+            });
+
+            window.addEventListener('message', event => {
+                const message = event.data;
+                switch (message.command) {
+                    case 'mostrarRespuesta':
+                        respuestaInput.value = message.respuesta;
+                        break;
                 }
             });
         </script>
