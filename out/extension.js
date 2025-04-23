@@ -37,6 +37,9 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
+const fs = __importStar(require("fs"));
+const dotenv = __importStar(require("dotenv"));
+dotenv.config();
 /**
  * @param {vscode.ExtensionContext} context
  */
@@ -81,7 +84,7 @@ function activate(context) {
 }
 function deactivate() { }
 async function authenticateUser(email) {
-    const authEndpoint = 'https://wslamineia.academys.io:4800/ws/auth/login';
+    const authEndpoint = `${process.env.API_BASE_URL}/auth/login`;
     try {
         const response = await fetch(authEndpoint, {
             method: 'POST',
@@ -105,7 +108,7 @@ async function authenticateUser(email) {
     }
 }
 async function sendChatRequest(token, pregunta, archivos) {
-    const chatEndpoint = 'https://wslamineia.academys.io:4800/ws/chat';
+    const chatEndpoint = `${process.env.API_BASE_URL}/chat`;
     if (!token) {
         return { error: 'No se ha iniciado sesión.' };
     }
@@ -143,7 +146,7 @@ async function sendChatRequest(token, pregunta, archivos) {
             if (typeof errorData === 'object' && errorData !== null && 'message' in errorData) {
                 return { error: errorData.message || `Error al enviar la pregunta: ${response.status}` };
             }
-            return { error: `Error al enviar la pregunta: ${response.status}` };
+            return { error: `Error al enviar la pregunta: ${response.status} - ${chatEndpoint}` };
         }
         const data = await response.json();
         return data;
@@ -171,9 +174,9 @@ async function showMainPanel(context) {
         switch (message.command) {
             case 'enviarPregunta':
                 const pregunta = message.pregunta;
-                const archivoSeleccionado = message.archivo;
-                vscode.window.showInformationMessage(`Pregunta "${pregunta}" enviada para el archivo: ${archivoSeleccionado}`);
-                const chatResult = await sendChatRequest(sessionToken, pregunta, [archivoSeleccionado]);
+                const archivosSeleccionados = message.archivosSeleccionados; // Ahora recibimos un array
+                vscode.window.showInformationMessage(`Pregunta "${pregunta}" enviada para los archivos: ${archivosSeleccionados.join(', ')}`);
+                const chatResult = await sendChatRequest(sessionToken, pregunta, archivosSeleccionados);
                 console.log('Resultado de sendChatRequest:', chatResult);
                 if (chatResult.code === 200 && chatResult.data) {
                     panel.webview.postMessage({ command: 'mostrarRespuesta', respuesta: chatResult.data });
@@ -186,8 +189,7 @@ async function showMainPanel(context) {
                 }
                 break;
             case 'seleccionarArchivo':
-                const archivo = message.archivo;
-                vscode.window.showInformationMessage(`Archivo seleccionado: ${archivo}`);
+                // No es necesario este caso individualmente ahora
                 break;
         }
     }, undefined, context.subscriptions);
@@ -195,118 +197,26 @@ async function showMainPanel(context) {
 function getLoginWebviewContent(webview, context) {
     const nonce = getNonce();
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'login.css'));
-    return `<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Ingreso</title>
-        <link rel="stylesheet" href="${styleUri}">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource};">
-    </head>
-    <body>
-        <h1>Ingresar</h1>
-        <div class="login-container">
-            <label for="email">Correo Electrónico:</label>
-            <input type="email" id="email" name="email" placeholder="tu@correo.com">
-            <button id="login-button">Ingresar</button>
-        </div>
-
-        <script nonce="${nonce}">
-            const vscode = acquireVsCodeApi();
-            const loginButton = document.getElementById('login-button');
-            const emailInput = document.getElementById('email');
-
-            loginButton.addEventListener('click', () => {
-                const email = emailInput.value;
-                if (email) {
-                    vscode.postMessage({
-                        command: 'login',
-                        email: email
-                    });
-                } else {
-                    alert('Por favor, ingresa tu correo electrónico.');
-                }
-            });
-        </script>
-    </body>
-    </html>`;
+    const loginHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'webview', 'login.html').fsPath;
+    let loginHtml = fs.readFileSync(loginHtmlPath, 'utf8');
+    loginHtml = loginHtml.replace('${styleUri}', styleUri.toString());
+    loginHtml = loginHtml.replace('${nonce}', nonce);
+    loginHtml = loginHtml.replace('${webview.cspSource}', webview.cspSource);
+    return loginHtml;
 }
 function getMainPanelContent(webview, filePaths, context) {
-    const fileListHtml = `
-        <ul>
-            ${filePaths.map(file => `<li><button class="file-item" data-file="${file}">${file}</button></li>`).join('')}
-        </ul>
-    `;
     const nonce = getNonce();
     const darkThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'dark.css'));
     const lightThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'light.css'));
-    return `<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Consultar Archivos</title>
-        <link rel="stylesheet" href="${darkThemeUri}" media="(prefers-color-scheme: dark)">
-        <link rel="stylesheet" href="${lightThemeUri}" media="(prefers-color-scheme: light)">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource};">
-    </head>
-    <body>
-        <h2>Lista de Archivos del Proyecto</h2>
-        ${fileListHtml}
-        <hr>
-        <h3>Escribe tu Consulta</h3>
-        <textarea id="pregunta" rows="5" placeholder="Escribe tu consulta aquí"></textarea>
-        <br>
-        <button id="enviar">Enviar Consulta</button>
-        <hr>
-        <h3>Respuesta</h3>
-        <textarea id="respuesta" rows="10" readonly placeholder="La respuesta del servicio aparecerá aquí"></textarea>
-
-        <script nonce="${nonce}">
-            const vscode = acquireVsCodeApi();
-            const enviarButton = document.getElementById('enviar');
-            const preguntaInput = document.getElementById('pregunta');
-            const respuestaInput = document.getElementById('respuesta');
-            const fileItems = document.querySelectorAll('.file-item');
-            let selectedFile = '';
-
-            fileItems.forEach(item => {
-                item.addEventListener('click', () => {
-                    selectedFile = item.getAttribute('data-file');
-                    vscode.postMessage({
-                        command: 'seleccionarArchivo',
-                        archivo: selectedFile
-                    });
-                });
-            });
-
-            enviarButton.addEventListener('click', async () => {
-                const pregunta = preguntaInput.value;
-                if (selectedFile && pregunta) {
-                    vscode.postMessage({
-                        command: 'enviarPregunta',
-                        archivo: selectedFile,
-                        pregunta: pregunta
-                    });
-                    preguntaInput.value = '';
-                    respuestaInput.value = 'Cargando...'; // Mostrar un indicador de carga
-                } else {
-                    alert('Por favor, selecciona un archivo y escribe tu consulta.');
-                }
-            });
-
-            window.addEventListener('message', event => {
-                const message = event.data;
-                switch (message.command) {
-                    case 'mostrarRespuesta':
-                        respuestaInput.value = message.respuesta;
-                        break;
-                }
-            });
-        </script>
-    </body>
-    </html>`;
+    const mainPanelHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'webview', 'mainPanel.html').fsPath;
+    let mainPanelHtml = fs.readFileSync(mainPanelHtmlPath, 'utf8');
+    const fileListHtml = filePaths.map(file => `<li><input type="checkbox" class="file-checkbox" value="${file}"> ${file}</li>`).join('');
+    mainPanelHtml = mainPanelHtml.replace('${darkThemeUri}', darkThemeUri.toString());
+    mainPanelHtml = mainPanelHtml.replace('${lightThemeUri}', lightThemeUri.toString());
+    mainPanelHtml = mainPanelHtml.replace('${nonce}', nonce);
+    mainPanelHtml = mainPanelHtml.replace('${webview.cspSource}', webview.cspSource);
+    mainPanelHtml = mainPanelHtml.replace('', fileListHtml); // Reemplazamos el marcador específico
+    return mainPanelHtml;
 }
 function getNonce() {
     let text = '';

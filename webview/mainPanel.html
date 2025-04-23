@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultar Archivos</title>
+    <link rel="stylesheet" href="${darkThemeUri}" media="(prefers-color-scheme: dark)">
+    <link rel="stylesheet" href="${lightThemeUri}" media="(prefers-color-scheme: light)">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource};">
+</head>
+
+<body>
+
+    <hr>
+    <h3>Escribe tu Consulta</h3>
+    <textarea id="pregunta" rows="5" placeholder="Escribe tu consulta aquí"></textarea>
+    <br>
+    <button id="enviar">Enviar Consulta</button>
+    <hr>
+    <h3>Respuesta</h3>
+    <textarea id="respuesta" rows="10" readonly placeholder="La respuesta del servicio aparecerá aquí"></textarea>
+
+    <script nonce="${nonce}">
+        const vscode = acquireVsCodeApi();
+        const enviarButton = document.getElementById('enviar');
+        const preguntaInput = document.getElementById('pregunta');
+        const respuestaInput = document.getElementById('respuesta');
+        const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+
+        enviarButton.addEventListener('click', async () => {
+            const pregunta = preguntaInput.value;
+            const archivosSeleccionados = Array.from(fileCheckboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.value);
+
+            if (archivosSeleccionados.length > 0 && pregunta) {
+                vscode.postMessage({
+                    command: 'enviarPregunta',
+                    archivosSeleccionados: archivosSeleccionados,
+                    pregunta: pregunta
+                });
+                preguntaInput.value = '';
+                respuestaInput.value = 'Cargando...'; // Mostrar un indicador de carga
+            } else {
+                alert('Por favor, selecciona al menos un archivo y escribe tu consulta.');
+            }
+        });
+
+        window.addEventListener('message', event => {
+            const message = event.data;
+            switch (message.command) {
+                case 'mostrarRespuesta':
+                    respuestaInput.value = message.respuesta;
+                    break;
+            }
+        });
+    </script>
+</body>
+
+</html>
