@@ -4,18 +4,18 @@ import * as fs from 'fs';
 import { AuthResponse, ChatResponse, ChatRequestBody, ChatFileToSend } from './interfaces';
 import * as dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, './../.env') });
 
 /**
  * @param {vscode.ExtensionContext} context
  */
 export function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand('lamene-developer-help.listFiles', async () => {
-        const sessionToken = context.globalState.get<string>('authToken');
+        const sessionToken = false; // context.globalState.get<string>('authToken');
 
         if (!sessionToken) {
             // Mostrar la página de inicio de sesión si no hay token
-            const panel = vscode.window.createWebviewPanel(
+            const panelLogin = vscode.window.createWebviewPanel(
                 'loginWebview',
                 'Ingreso',
                 vscode.ViewColumn.One,
@@ -25,19 +25,18 @@ export function activate(context: vscode.ExtensionContext) {
                 }
             );
 
-            panel.webview.html = getLoginWebviewContent(panel.webview, context);
+            panelLogin.webview.html = getLoginWebviewContent(panelLogin.webview, context);
 
-            panel.webview.onDidReceiveMessage(async message => {
+            panelLogin.webview.onDidReceiveMessage(async message => {
+                vscode.window.showErrorMessage(`message: ${message}`);
                 switch (message.command) {
                     case 'login':
                         const email = message.email;
                         const authResult = await authenticateUser(email);
-
                         if (authResult.code === 200) {
                             await context.globalState.update('authToken', authResult.token);
                             vscode.window.showInformationMessage('Ingreso exitoso.');
-                            panel.dispose();
-                            // Mostrar la página principal después del login
+                            panelLogin.dispose();
                             showMainPanel(context);
                         } else if (authResult.error) {
                             vscode.window.showErrorMessage(`Error de ingreso: ${authResult.error}`);
@@ -48,7 +47,6 @@ export function activate(context: vscode.ExtensionContext) {
                 }
             }, undefined, context.subscriptions);
         } else {
-            // Mostrar directamente la página principal si ya hay token
             showMainPanel(context);
         }
     });
@@ -162,6 +160,7 @@ async function showMainPanel(context: vscode.ExtensionContext) {
     panel.webview.html = getMainPanelContent(panel.webview, filePaths, context);
 
     panel.webview.onDidReceiveMessage(async message => {
+        vscode.window.showErrorMessage(`message: ${message}`);
         const sessionToken = context.globalState.get<string>('authToken');
         switch (message.command) {
             case 'enviarPregunta':
@@ -186,14 +185,46 @@ async function showMainPanel(context: vscode.ExtensionContext) {
 }
 
 function getLoginWebviewContent(webview: vscode.Webview, context: vscode.ExtensionContext): string {
+
     const nonce = getNonce();
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'login.css'));
-    const loginHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'webview', 'login.html').fsPath;
-    let loginHtml = fs.readFileSync(loginHtmlPath, 'utf8');
-    loginHtml = loginHtml.replace('${styleUri}', styleUri.toString());
-    loginHtml = loginHtml.replace('${nonce}', nonce);
-    loginHtml = loginHtml.replace('${webview.cspSource}', webview.cspSource);
-    return loginHtml;
+
+    return `<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Ingreso</title>
+        <link rel="stylesheet" href="${styleUri}">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource};">
+    </head>
+    <body>
+        <h1>Ingresar</h1>
+        <div class="login-container">
+            <label for="email">Correo Electrónico:</label>
+            <input type="email" id="email" name="email" placeholder="tu@correo.com">
+            <button id="login-button">Ingresar</button>
+        </div>
+
+        <script nonce="${nonce}">
+            const vscode = acquireVsCodeApi();
+            const loginButton = document.getElementById('login-button');
+            const emailInput = document.getElementById('email');
+
+            loginButton.addEventListener('click', () => {
+                const email = emailInput.value;
+                if (email) {
+                    vscode.postMessage({
+                        command: 'login',
+                        email: email
+                    });
+                } else {
+                    alert('Por favor, ingresa tu correo electrónico.');
+                }
+            });
+        </script>
+    </body>
+    </html>`;
 }
 
 function getMainPanelContent(webview: vscode.Webview, filePaths: string[], context: vscode.ExtensionContext): string {
