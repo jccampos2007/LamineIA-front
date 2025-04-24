@@ -11,7 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, './../.env') });
  */
 export function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand('lamene-developer-help.listFiles', async () => {
-        const sessionToken = false; // context.globalState.get<string>('authToken');
+        const sessionToken = context.globalState.get<string>('authToken');
 
         if (!sessionToken) {
             // Mostrar la página de inicio de sesión si no hay token
@@ -231,15 +231,17 @@ function getMainPanelContent(webview: vscode.Webview, filePaths: string[], conte
     const nonce = getNonce();
     const darkThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'dark.css'));
     const lightThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'light.css'));
-    const mainPanelHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'webview', 'mainPanel.html').fsPath;
-    let mainPanelHtml = fs.readFileSync(mainPanelHtmlPath, 'utf8');
-    const fileListHtml = filePaths.map(file => `<li><input type="checkbox" class="file-checkbox" value="${file}"> ${file}</li>`).join('');
+    const mainPanelHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'webview', 'mainPanel.html').fsPath; // Ruta al archivo HTML
+    let mainPanelHtml = fs.readFileSync(mainPanelHtmlPath, 'utf8'); // Leer el contenido del archivo
 
+    // Reemplazar marcadores de posición
     mainPanelHtml = mainPanelHtml.replace('${darkThemeUri}', darkThemeUri.toString());
     mainPanelHtml = mainPanelHtml.replace('${lightThemeUri}', lightThemeUri.toString());
     mainPanelHtml = mainPanelHtml.replace('${nonce}', nonce);
     mainPanelHtml = mainPanelHtml.replace('${webview.cspSource}', webview.cspSource);
-    mainPanelHtml = mainPanelHtml.replace('', fileListHtml); // Reemplazamos el marcador específico
+    // Aquí deberías insertar la lista de archivos, como vimos antes
+    const fileListHtml = filePaths.map(file => `<li><input type="checkbox" class="file-checkbox" value="${file}"> ${file}</li>`).join('');
+    mainPanelHtml = mainPanelHtml.replace('', fileListHtml);
 
     return mainPanelHtml;
 }

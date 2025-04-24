@@ -1,44 +1,68 @@
 {
   "name": "lamene-developer-help",
-  "displayName": "lamene developer help",
-  "description": "",
+  "displayName": "Lamene Developer Help",
+  "description": "Ayuda para desarrolladores de Lamene",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.99.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onCommand:lamene-developer-help.listFiles",
+    "onView:lamene.fileExplorer"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "lamene-developer-help.listFiles",
-        "title": "List Files"
+        "title": "Mostrar Archivos",
+        "icon": "$(file-directory)"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "lameneViewContainer",
+          "title": "Lamene",
+          "icon": "./resources/mi-icono.svg"
+        }
+      ]
+    },
+    "views": {
+      "lameneViewContainer": [
+        {
+          "id": "lamene.fileExplorer",
+          "name": "Explorador de Archivos",
+          "type": "webview",
+          "icon": "$(file-directory)"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "compile": "tsc -p .",
+    "watch": "tsc -w .",
     "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
-    "@types/vscode": "^1.99.0",
-    "@typescript-eslint/eslint-plugin": "^8.28.0",
-    "@typescript-eslint/parser": "^8.28.0",
-    "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1",
-    "eslint": "^9.23.0",
-    "typescript": "^5.8.2"
-  },
-  "dependencies": {
-    "dotenv": "^16.5.0"
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^18.21.0",
+    "@types/mocha": "^10.0.3",
+    "@types/sinon": "^17.0.3",
+    "@types/chai": "^4.3.11",
+    "typescript": "^5.3.3",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/parser": "^6.18.1",
+    "@typescript-eslint/eslint-plugin": "^6.18.1",
+    "mocha": "^10.2.0",
+    "chai": "^4.3.10",
+    "sinon": "^17.0.3",
+    "@vscode/test-electron": "^2.3.9"
   }
 }

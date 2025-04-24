@@ -8,11 +8,13 @@
     <link rel="stylesheet" href="${darkThemeUri}" media="(prefers-color-scheme: dark)">
     <link rel="stylesheet" href="${lightThemeUri}" media="(prefers-color-scheme: light)">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource};">
+        content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource}; img-src ${webview.cspSource};">
 </head>
 
 <body>
-
+    <h2>Lista de Archivos del Proyecto</h2>
+    <div id="file-list" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">
+    </div>
     <hr>
     <h3>Escribe tu Consulta</h3>
     <textarea id="pregunta" rows="5" placeholder="Escribe tu consulta aquí"></textarea>
@@ -42,7 +44,7 @@
                     pregunta: pregunta
                 });
                 preguntaInput.value = '';
-                respuestaInput.value = 'Cargando...'; // Mostrar un indicador de carga
+                respuestaInput.value = 'Cargando...';
             } else {
                 alert('Por favor, selecciona al menos un archivo y escribe tu consulta.');
             }
