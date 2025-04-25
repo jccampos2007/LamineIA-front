@@ -1,7 +1,7 @@
 {
-  "name": "lamene-developer-help",
-  "displayName": "Lamene Developer Help",
-  "description": "Ayuda para desarrolladores de Lamene",
+  "name": "lamine-developer-help",
+  "displayName": "lamine Developer Help",
+  "description": "Ayuda para desarrolladores de lamine",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.85.0"
@@ -9,15 +9,12 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "onCommand:lamene-developer-help.listFiles",
-    "onView:lamene.fileExplorer"
-  ],
+  "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "lamene-developer-help.listFiles",
+        "command": "lamine-developer-help.listFiles",
         "title": "Mostrar Archivos",
         "icon": "$(file-directory)"
       }
@@ -25,19 +22,18 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "lameneViewContainer",
-          "title": "Lamene",
+          "id": "lamineViewContainer",
+          "title": "Lamine",
           "icon": "./resources/mi-icono.svg"
         }
       ]
     },
     "views": {
-      "lameneViewContainer": [
+      "lamineViewContainer": [
         {
-          "id": "lamene.fileExplorer",
+          "id": "lamine-developer-help.listFiles",
           "name": "Explorador de Archivos",
-          "type": "webview",
-          "icon": "$(file-directory)"
+          "type": "webview"
         }
       ]
     }
