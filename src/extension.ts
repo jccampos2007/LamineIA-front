@@ -10,51 +10,66 @@ dotenv.config({ path: path.resolve(__dirname, './../.env') });
  * @param {vscode.ExtensionContext} context
  */
 export function activate(context: vscode.ExtensionContext) {
-    let disposable = vscode.commands.registerCommand('lamine-developer-help.listFiles', async () => {
-        const sessionToken = false; // context.globalState.get<string>('authToken');
 
-        if (!sessionToken) {
-            // Mostrar la página de inicio de sesión si no hay token
-            const panelLogin = vscode.window.createWebviewPanel(
-                'loginWebview',
-                'Ingreso',
-                vscode.ViewColumn.One,
-                {
-                    enableScripts: true,
-                    retainContextWhenHidden: true
-                }
-            );
-
-            panelLogin.webview.html = getLoginWebviewContent(panelLogin.webview, context);
-
-            panelLogin.webview.onDidReceiveMessage(async message => {
-                vscode.window.showErrorMessage(`message: ${message}`);
-                switch (message.command) {
-                    case 'login':
-                        const email = message.email;
-                        const authResult = await authenticateUser(email);
-                        if (authResult.code === 200) {
-                            await context.globalState.update('authToken', authResult.token);
-                            vscode.window.showInformationMessage('Ingreso exitoso.');
-                            panelLogin.dispose();
-                            showMainPanel(context);
-                        } else if (authResult.error) {
-                            vscode.window.showErrorMessage(`Error de ingreso: ${authResult.error}`);
-                        } else {
-                            vscode.window.showErrorMessage('Error desconocido durante el ingreso.');
-                        }
-                        break;
-                }
-            }, undefined, context.subscriptions);
-        } else {
-            showMainPanel(context);
-        }
-    });
-
-    context.subscriptions.push(disposable);
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(
+            'lamine-developer-help.listFiles',
+            new LoginViewProvider(context)
+        )
+    );
 }
 
 export function deactivate() { }
+
+export class LoginViewProvider implements vscode.WebviewViewProvider {
+    private webviewView?: vscode.WebviewView;
+
+    constructor(private readonly context: vscode.ExtensionContext) { }
+
+    resolveWebviewView(
+        webviewView: vscode.WebviewView,
+        _context: vscode.WebviewViewResolveContext,
+        _token: vscode.CancellationToken
+    ) {
+        this.webviewView = webviewView;
+
+        webviewView.webview.options = {
+            enableScripts: true,
+            localResourceRoots: [
+                vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'webview')
+            ]
+        };
+
+        this.loadLoginHtml();
+
+        webviewView.webview.onDidReceiveMessage(async message => {
+            if (message.command === 'login') {
+                const authResult = await authenticateUser(message.email);
+                if (authResult.code === 200) {
+                    await this.context.globalState.update('authToken', authResult.token);
+                    vscode.window.showInformationMessage('Ingreso exitoso.');
+
+                    // 🔁 Cargar nuevo contenido
+                    this.loadMainPanelHtml();
+                } else {
+                    vscode.window.showErrorMessage('Error en el ingreso.');
+                }
+            }
+        });
+    }
+
+    private loadLoginHtml() {
+        if (this.webviewView) {
+            this.webviewView.webview.html = getLoginWebviewContent(this.webviewView.webview, this.context);
+        }
+    }
+
+    private loadMainPanelHtml() {
+        if (this.webviewView) {
+            this.webviewView.webview.html = getMainPanelContent(this.webviewView.webview, [], this.context);
+        }
+    }
+}
 
 async function authenticateUser(email: string): Promise<AuthResponse> {
     const authEndpoint = `${process.env.API_BASE_URL}/auth/login`;
@@ -204,7 +219,7 @@ function getMainPanelContent(webview: vscode.Webview, filePaths: string[], conte
     const lightThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'light.css'));
     const mainPanelHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'mainPanel.html').fsPath; // Ruta al archivo HTML
     let mainPanelHtml = fs.readFileSync(mainPanelHtmlPath, 'utf8');
-    
+
     mainPanelHtml = mainPanelHtml.replace(/\$\{darkThemeUri\}/g, darkThemeUri.toString());
     mainPanelHtml = mainPanelHtml.replace(/\$\{lightThemeUri\}/g, lightThemeUri.toString());
     mainPanelHtml = mainPanelHtml.replace(/\$\{nonce\}/g, nonce);
