@@ -45,7 +45,7 @@ dotenv.config({ path: path.resolve(__dirname, './../.env') });
  */
 function activate(context) {
     let disposable = vscode.commands.registerCommand('lamine-developer-help.listFiles', async () => {
-        const sessionToken = context.globalState.get('authToken');
+        const sessionToken = false; // context.globalState.get<string>('authToken');
         if (!sessionToken) {
             // Mostrar la página de inicio de sesión si no hay token
             const panelLogin = vscode.window.createWebviewPanel('loginWebview', 'Ingreso', vscode.ViewColumn.One, {
@@ -196,43 +196,14 @@ async function showMainPanel(context) {
 }
 function getLoginWebviewContent(webview, context) {
     const nonce = getNonce();
-    const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'login.css'));
-    return `<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Ingreso</title>
-        <link rel="stylesheet" href="${styleUri}">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource};">
-    </head>
-    <body>
-        <h1>Ingresar</h1>
-        <div class="login-container">
-            <label for="email">Correo Electrónico:</label>
-            <input type="email" id="email" name="email" placeholder="tu@correo.com">
-            <button id="login-button">Ingresar</button>
-        </div>
-
-        <script nonce="${nonce}">
-            const vscode = acquireVsCodeApi();
-            const loginButton = document.getElementById('login-button');
-            const emailInput = document.getElementById('email');
-
-            loginButton.addEventListener('click', () => {
-                const email = emailInput.value;
-                if (email) {
-                    vscode.postMessage({
-                        command: 'login',
-                        email: email
-                    });
-                } else {
-                    alert('Por favor, ingresa tu correo electrónico.');
-                }
-            });
-        </script>
-    </body>
-    </html>`;
+    const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'login.css'));
+    const loginHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'login.html').fsPath; // Ruta al archivo HTML
+    let loginHtml = fs.readFileSync(loginHtmlPath, 'utf8'); // Leer el contenido del archivo
+    // Reemplazar marcadores de posición
+    loginHtml = loginHtml.replace(/\$\{styleUri\}/g, styleUri.toString());
+    loginHtml = loginHtml.replace(/\$\{nonce\}/g, nonce);
+    loginHtml = loginHtml.replace(/\$\{webview\.cspSource\}/g, webview.cspSource);
+    return loginHtml;
 }
 function getMainPanelContent(webview, filePaths, context) {
     const nonce = getNonce();
@@ -245,7 +216,6 @@ function getMainPanelContent(webview, filePaths, context) {
     mainPanelHtml = mainPanelHtml.replace('${lightThemeUri}', lightThemeUri.toString());
     mainPanelHtml = mainPanelHtml.replace('${nonce}', nonce);
     mainPanelHtml = mainPanelHtml.replace('${webview.cspSource}', webview.cspSource);
-    // Aquí deberías insertar la lista de archivos, como vimos antes
     const fileListHtml = filePaths.map(file => `<li><input type="checkbox" class="file-checkbox" value="${file}"> ${file}</li>`).join('');
     mainPanelHtml = mainPanelHtml.replace('${fileList}', fileListHtml);
     return mainPanelHtml;
