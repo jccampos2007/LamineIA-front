@@ -10,7 +10,7 @@ dotenv.config({ path: path.resolve(__dirname, './../.env') });
  * @param {vscode.ExtensionContext} context
  */
 export function activate(context: vscode.ExtensionContext) {
-    let disposable = vscode.commands.registerCommand('lamene-developer-help.listFiles', async () => {
+    let disposable = vscode.commands.registerCommand('lamine-developer-help.listFiles', async () => {
         const sessionToken = context.globalState.get<string>('authToken');
 
         if (!sessionToken) {
@@ -229,9 +229,9 @@ function getLoginWebviewContent(webview: vscode.Webview, context: vscode.Extensi
 
 function getMainPanelContent(webview: vscode.Webview, filePaths: string[], context: vscode.ExtensionContext): string {
     const nonce = getNonce();
-    const darkThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'dark.css'));
-    const lightThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'light.css'));
-    const mainPanelHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'webview', 'mainPanel.html').fsPath; // Ruta al archivo HTML
+    const darkThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'dark.css'));
+    const lightThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'light.css'));
+    const mainPanelHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'mainPanel.html').fsPath; // Ruta al archivo HTML
     let mainPanelHtml = fs.readFileSync(mainPanelHtmlPath, 'utf8'); // Leer el contenido del archivo
 
     // Reemplazar marcadores de posición
@@ -239,9 +239,8 @@ function getMainPanelContent(webview: vscode.Webview, filePaths: string[], conte
     mainPanelHtml = mainPanelHtml.replace('${lightThemeUri}', lightThemeUri.toString());
     mainPanelHtml = mainPanelHtml.replace('${nonce}', nonce);
     mainPanelHtml = mainPanelHtml.replace('${webview.cspSource}', webview.cspSource);
-    // Aquí deberías insertar la lista de archivos, como vimos antes
     const fileListHtml = filePaths.map(file => `<li><input type="checkbox" class="file-checkbox" value="${file}"> ${file}</li>`).join('');
-    mainPanelHtml = mainPanelHtml.replace('', fileListHtml);
+    mainPanelHtml = mainPanelHtml.replace('${fileList}', fileListHtml);
 
     return mainPanelHtml;
 }
