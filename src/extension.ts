@@ -11,7 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, './../.env') });
  */
 export function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand('lamine-developer-help.listFiles', async () => {
-        const sessionToken = context.globalState.get<string>('authToken');
+        const sessionToken = false; // context.globalState.get<string>('authToken');
 
         if (!sessionToken) {
             // Mostrar la página de inicio de sesión si no hay token
@@ -187,44 +187,15 @@ async function showMainPanel(context: vscode.ExtensionContext) {
 function getLoginWebviewContent(webview: vscode.Webview, context: vscode.ExtensionContext): string {
 
     const nonce = getNonce();
-    const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'login.css'));
+    const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'login.css'));
+    const loginHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'login.html').fsPath; // Ruta al archivo HTML
+    let loginHtml = fs.readFileSync(loginHtmlPath, 'utf8');
 
-    return `<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Ingreso</title>
-        <link rel="stylesheet" href="${styleUri}">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource};">
-    </head>
-    <body>
-        <h1>Ingresar</h1>
-        <div class="login-container">
-            <label for="email">Correo Electrónico:</label>
-            <input type="email" id="email" name="email" placeholder="tu@correo.com">
-            <button id="login-button">Ingresar</button>
-        </div>
+    loginHtml = loginHtml.replace(/\$\{styleUri\}/g, styleUri.toString());
+    loginHtml = loginHtml.replace(/\$\{nonce\}/g, nonce);
+    loginHtml = loginHtml.replace(/\$\{webview\.cspSource\}/g, webview.cspSource);
 
-        <script nonce="${nonce}">
-            const vscode = acquireVsCodeApi();
-            const loginButton = document.getElementById('login-button');
-            const emailInput = document.getElementById('email');
-
-            loginButton.addEventListener('click', () => {
-                const email = emailInput.value;
-                if (email) {
-                    vscode.postMessage({
-                        command: 'login',
-                        email: email
-                    });
-                } else {
-                    alert('Por favor, ingresa tu correo electrónico.');
-                }
-            });
-        </script>
-    </body>
-    </html>`;
+    return loginHtml;
 }
 
 function getMainPanelContent(webview: vscode.Webview, filePaths: string[], context: vscode.ExtensionContext): string {
@@ -232,13 +203,12 @@ function getMainPanelContent(webview: vscode.Webview, filePaths: string[], conte
     const darkThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'dark.css'));
     const lightThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'light.css'));
     const mainPanelHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'mainPanel.html').fsPath; // Ruta al archivo HTML
-    let mainPanelHtml = fs.readFileSync(mainPanelHtmlPath, 'utf8'); // Leer el contenido del archivo
-
-    // Reemplazar marcadores de posición
-    mainPanelHtml = mainPanelHtml.replace('${darkThemeUri}', darkThemeUri.toString());
-    mainPanelHtml = mainPanelHtml.replace('${lightThemeUri}', lightThemeUri.toString());
-    mainPanelHtml = mainPanelHtml.replace('${nonce}', nonce);
-    mainPanelHtml = mainPanelHtml.replace('${webview.cspSource}', webview.cspSource);
+    let mainPanelHtml = fs.readFileSync(mainPanelHtmlPath, 'utf8');
+    
+    mainPanelHtml = mainPanelHtml.replace(/\$\{darkThemeUri\}/g, darkThemeUri.toString());
+    mainPanelHtml = mainPanelHtml.replace(/\$\{lightThemeUri\}/g, lightThemeUri.toString());
+    mainPanelHtml = mainPanelHtml.replace(/\$\{nonce\}/g, nonce);
+    mainPanelHtml = mainPanelHtml.replace(/\$\{webview\.cspSource\}/g, webview.cspSource);
     const fileListHtml = filePaths.map(file => `<li><input type="checkbox" class="file-checkbox" value="${file}"> ${file}</li>`).join('');
     mainPanelHtml = mainPanelHtml.replace('${fileList}', fileListHtml);
 
