@@ -1,10 +1,10 @@
-# Lamene Developer Help README
+# Lamine Developer Help README
 
-¡Bienvenido a Lamene Developer Help! Esta extensión de Visual Studio Code está diseñada para ser tu asistente de programación personal, ofreciéndote consultas impulsadas por IA sobre código, prácticas recomendadas y resolución de problemas directamente en tu entorno de desarrollo.
+¡Bienvenido a Lamine Developer Help! Esta extensión de Visual Studio Code está diseñada para ser tu asistente de programación personal, ofreciéndote consultas impulsadas por IA sobre código, prácticas recomendadas y resolución de problemas directamente en tu entorno de desarrollo.
 
 ## Características
 
-Lamene Developer Help te proporciona las siguientes funcionalidades directamente en VS Code:
+Lamine Developer Help te proporciona las siguientes funcionalidades directamente en VS Code:
 
 1.  **Consultas de Programación con IA:** Realiza preguntas sobre conceptos de programación, sintaxis de lenguajes, algoritmos y más. Obtén explicaciones claras y concisas para resolver tus dudas rápidamente.
 
@@ -21,15 +21,15 @@ Lamene Developer Help te proporciona las siguientes funcionalidades directamente
     ![Consulta de buenas prácticas](images/feature-best-practices.png)
     > Ejemplo de una consulta sobre las mejores prácticas para la gestión de errores en Node.js.
 
-4.  **Integración en la Barra de Actividad:** Accede fácilmente a Lamene Developer Help a través de un icono dedicado en la barra de actividad de VS Code.
+4.  **Integración en la Barra de Actividad:** Accede fácilmente a Lamine Developer Help a través de un icono dedicado en la barra de actividad de VS Code.
 
     ![Icono en la barra de actividad](images/feature-activity-bar-icon.png)
-    > El icono de Lamene Help en la barra de actividad para un acceso rápido.
+    > El icono de Lamine Help en la barra de actividad para un acceso rápido.
 
 5.  **Interfaz de Consulta Intuitiva:** Interactúa con la IA a través de un panel web integrado que muestra la lista de archivos de tu proyecto y un área de texto para ingresar tus preguntas.
 
     ![Panel de consulta](images/feature-consultation-panel.png)
-    > El panel de Lamene Developer Help mostrando la lista de archivos y el área de consulta.
+    > El panel de Lamine Developer Help mostrando la lista de archivos y el área de consulta.
 
 ## Requisitos
 
@@ -38,20 +38,20 @@ Lamene Developer Help te proporciona las siguientes funcionalidades directamente
 
 ## Configuración de la Extensión
 
-Actualmente, Lamene Developer Help no añade configuraciones personalizables a través del punto de extensión `contributes.configuration`. Las futuras versiones podrían incluir opciones para personalizar el comportamiento de la IA o la interfaz.
+Actualmente, Lamine Developer Help no añade configuraciones personalizables a través del punto de extensión `contributes.configuration`. Las futuras versiones podrían incluir opciones para personalizar el comportamiento de la IA o la interfaz.
 
 ## Cómo Probar la Extensión
 
-Sigue estos pasos para probar Lamene Developer Help en tu entorno de desarrollo de VS Code:
+Sigue estos pasos para probar Lamine Developer Help en tu entorno de desarrollo de VS Code:
 
 1.  **Abre tu Proyecto en VS Code:** Asegúrate de tener un proyecto de programación abierto en Visual Studio Code. La extensión utiliza la información de los archivos de este proyecto.
 
 2.  **Ejecuta el Comando de la Extensión:**
     * Abre la Paleta de Comandos de VS Code (`Ctrl+Shift+P` en Windows/Linux o `Cmd+Shift+P` en macOS).
-    * Busca y ejecuta el comando: `Lamene Help: Mostrar Panel Principal`.
+    * Busca y ejecuta el comando: `Lamine Help: Mostrar Panel Principal`.
 
 3.  **Verifica el Icono en la Barra de Actividad:**
-    * Deberías ver un nuevo icono con el título "Lamene Help" en la barra de actividad (el menú lateral donde se encuentran el Explorador, Buscar, etc.). Haz clic en este icono para abrir el panel de la extensión.
+    * Deberías ver un nuevo icono con el título "Lamine Help" en la barra de actividad (el menú lateral donde se encuentran el Explorador, Buscar, etc.). Haz clic en este icono para abrir el panel de la extensión.
 
 4.  **Interactúa con el Panel:**
     * **Lista de Archivos:** El panel mostrará una lista de los archivos de tu proyecto actual.
@@ -80,7 +80,7 @@ Si encuentras algún problema, por favor, repórtalo a través de la sección de
 
 ### 0.0.1
 
-* Lanzamiento inicial de Lamene Developer Help.
+* Lanzamiento inicial de Lamine Developer Help.
 * Integración de un panel web para la consulta a la IA.
 * Funcionalidad para listar los archivos del proyecto.
 * Campo de texto para ingresar preguntas sobre programación, código y mejores prácticas.
@@ -108,4 +108,4 @@ Puedes editar este README usando Visual Studio Code. Aquí tienes algunos atajos
 * [Soporte de Markdown en Visual Studio Code](http://code.visualstudio.com/docs/languages/markdown)
 * [Referencia de sintaxis Markdown](https://help.github.com/articles/markdown-basics/)
 
-**¡Disfruta probando Lamene Developer Help!**
+**¡Disfruta probando Lamine Developer Help!**
