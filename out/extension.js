@@ -44,7 +44,7 @@ dotenv.config({ path: path.resolve(__dirname, './../.env') });
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
-    let disposable = vscode.commands.registerCommand('lamene-developer-help.listFiles', async () => {
+    let disposable = vscode.commands.registerCommand('lamine-developer-help.listFiles', async () => {
         const sessionToken = context.globalState.get('authToken');
         if (!sessionToken) {
             // Mostrar la página de inicio de sesión si no hay token
@@ -83,7 +83,7 @@ function activate(context) {
 }
 function deactivate() { }
 async function authenticateUser(email) {
-    const authEndpoint = `https://wslamineia.academys.io:4800/ws/auth/login`;
+    const authEndpoint = `${process.env.API_BASE_URL}/auth/login`;
     try {
         const response = await fetch(authEndpoint, {
             method: 'POST',
@@ -107,7 +107,7 @@ async function authenticateUser(email) {
     }
 }
 async function sendChatRequest(token, pregunta, archivos) {
-    const chatEndpoint = `https://wslamineia.academys.io:4800/ws/chat`;
+    const chatEndpoint = `${process.env.API_BASE_URL}/chat`;
     if (!token) {
         return { error: 'No se ha iniciado sesión.' };
     }
@@ -236,9 +236,9 @@ function getLoginWebviewContent(webview, context) {
 }
 function getMainPanelContent(webview, filePaths, context) {
     const nonce = getNonce();
-    const darkThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'dark.css'));
-    const lightThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'light.css'));
-    const mainPanelHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'webview', 'mainPanel.html').fsPath; // Ruta al archivo HTML
+    const darkThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'dark.css'));
+    const lightThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'light.css'));
+    const mainPanelHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'mainPanel.html').fsPath; // Ruta al archivo HTML
     let mainPanelHtml = fs.readFileSync(mainPanelHtmlPath, 'utf8'); // Leer el contenido del archivo
     // Reemplazar marcadores de posición
     mainPanelHtml = mainPanelHtml.replace('${darkThemeUri}', darkThemeUri.toString());
@@ -247,7 +247,7 @@ function getMainPanelContent(webview, filePaths, context) {
     mainPanelHtml = mainPanelHtml.replace('${webview.cspSource}', webview.cspSource);
     // Aquí deberías insertar la lista de archivos, como vimos antes
     const fileListHtml = filePaths.map(file => `<li><input type="checkbox" class="file-checkbox" value="${file}"> ${file}</li>`).join('');
-    mainPanelHtml = mainPanelHtml.replace('', fileListHtml);
+    mainPanelHtml = mainPanelHtml.replace('${fileList}', fileListHtml);
     return mainPanelHtml;
 }
 function getNonce() {
