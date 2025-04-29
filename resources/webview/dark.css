@@ -1,0 +1,30 @@
+#respuesta-div {
+    white-space: pre-wrap;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 1rem;
+    border-radius: 8px;
+    font-family: monospace;
+    overflow-x: auto;
+  }
+  
+  code {
+    background: #2d2d2d;
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    display: inline-block;
+    white-space: pre-wrap;
+    color: #9cdcfe;
+  }
+
+  pre {
+    background: #1e1e1e;
+    padding: 0.5em;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+
+  h2 {
+    color: #56d661;
+  }
+  

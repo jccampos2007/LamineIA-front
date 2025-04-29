@@ -23,20 +23,29 @@
     <button id="enviar">Enviar Consulta</button>
     <hr>
     <h3>Respuesta</h3>
-    <textarea id="respuesta" rows="10" readonly placeholder="La respuesta del servicio aparecerá aquí"></textarea>
+    <br>
+    <div id="respuesta-div" class="respuesta-chatgpt"></div>
 
     <script nonce="${nonce}">
         const vscode = acquireVsCodeApi();
         const enviarButton = document.getElementById('enviar');
         const preguntaInput = document.getElementById('pregunta');
-        const respuestaInput = document.getElementById('respuesta');
+        const respuestaDiv = document.getElementById('respuesta-div');
         const fileCheckboxes = document.querySelectorAll('.file-checkbox');
 
         enviarButton.addEventListener('click', async () => {
             const pregunta = preguntaInput.value;
             const archivosSeleccionados = Array.from(fileCheckboxes)
                 .filter(checkbox => checkbox.checked)
-                .map(checkbox => checkbox.value);
+                .map(checkbox => {
+                    return {
+                        name: checkbox.dataset.name,
+                        type: checkbox.dataset.type,
+                        path: checkbox.dataset.path
+                    };
+                });
+
+            preguntaInput.innerHTML = 'Cargando...';
 
             if (archivosSeleccionados.length > 0 && pregunta) {
                 vscode.postMessage({
@@ -44,22 +53,161 @@
                     archivosSeleccionados: archivosSeleccionados,
                     pregunta: pregunta
                 });
-                preguntaInput.value = '';
-                respuestaInput.value = 'Cargando...';
             } else {
                 alert('Por favor, selecciona al menos un archivo y escribe tu consulta.');
             }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const folderCheckboxes = document.querySelectorAll('.folder-checkbox');
+            folderCheckboxes.forEach(folderCheckbox => {
+                folderCheckbox.addEventListener('change', (event) => {
+                    const folder = event.target;
+                    const files = folder.closest('li').querySelectorAll('.file-checkbox');
+                    const childFolders = folder.closest('li').querySelectorAll('.folder-checkbox');
+
+                    files.forEach(fileCheckbox => {
+                        fileCheckbox.checked = folder.checked;
+                    });
+
+                    childFolders.forEach(childFolderCheckbox => {
+                        childFolderCheckbox.checked = folder.checked;
+                        const childFiles = childFolderCheckbox.closest('li').querySelectorAll('.file-checkbox');
+
+                        childFiles.forEach(childFileCheckbox => {
+                            childFileCheckbox.checked = folder.checked;
+                        });
+                    });
+                });
+            });
         });
 
         window.addEventListener('message', event => {
             const message = event.data;
             switch (message.command) {
                 case 'mostrarRespuesta':
-                    respuestaInput.value = message.respuesta;
+                    const texto = message.respuesta;
+                    const bloques = splitByCodeBlocks(texto);
+
+                    respuestaDiv.innerHTML = bloques.map((b, index) => {
+                        if (b.isCode) {
+                            const escaped = escapeHtmlCode(b.content);
+                            return `
+                                <div class="code-toolbar">
+                                    <div class="code-header"><strong>${b.language || 'Código'}</strong></div>
+                                    <pre><code id="code-" data-file-path="${b.filePath}">${escaped}</code></pre>
+                                    <div class="code-buttons">
+                                        <button onclick="copiarCodigo()">Copiar</button>
+                                        <button onclick="insertarCodigo('', '${b.filePath}')">Insertar</button>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            return `<p>${escapeHtmlText(b.content)}</p><br>`;
+                        }
+                    }).join('');
                     break;
             }
         });
+
+        function escapeHtmlCode(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        }
+
+        function escapeHtmlText(texto) {
+            texto = texto.replace(/`([^`]+)`/g, (match, contenido) => {
+                const escaped = escapeHtmlCode(contenido)
+                return `<code>${escaped}</code>`;
+            });
+
+            texto = texto.replace(/\*\*([^*]+)\*\*/g, (match, contenido) => {
+                const escaped = escapeHtmlCode(contenido);
+                return `<h3>${escaped}</h3>`;
+            });
+
+            return texto.replace(/\n/g, '<br>');
+        }
+
+        function splitByCodeBlocks(texto) {
+            const bloques = [];
+            let indiceInicio = 0;
+
+            while (indiceInicio < texto.length) {
+                const inicioBloqueCodigo = texto.indexOf('```', indiceInicio);
+                if (inicioBloqueCodigo === -1) {
+                    bloques.push({ content: texto.substring(indiceInicio), isCode: false, filePath: '', language: '' });
+                    break;
+                }
+
+                if (inicioBloqueCodigo > indiceInicio) {
+                    bloques.push({ content: texto.substring(indiceInicio, inicioBloqueCodigo), isCode: false, filePath: '', language: '' });
+                }
+
+                // Detectar el tipo de lenguaje después de ```
+                const afterBackticks = texto.substring(inicioBloqueCodigo + 3, texto.indexOf('\n', inicioBloqueCodigo + 3));
+                const languageMatch = afterBackticks.match(/^([a-zA-Z0-9]+)/);
+                const language = languageMatch ? languageMatch[1] : '';
+                const finBloqueCodigo = texto.indexOf('```', inicioBloqueCodigo + 3);
+                if (finBloqueCodigo === -1) {
+                    bloques.push({ content: texto.substring(inicioBloqueCodigo + 3), isCode: true, filePath: '', language });
+                    break;
+                }
+
+                // Extraer y procesar el contenido del bloque de código
+                const codigoBloqueCompleto = texto.substring(inicioBloqueCodigo + 3, finBloqueCodigo);
+                const lineas = codigoBloqueCompleto.split('\n');
+                let filePath = '';
+
+                const rutaMatchIndex = lineas.findIndex(linea => linea.match(/\[Archivo: .* - file - (.*)\]/));
+                if (rutaMatchIndex !== -1) {
+                    const rutaMatch = lineas[rutaMatchIndex].match(/\[Archivo: .* - file - (.*)\]/);
+                    if (rutaMatch) {
+                        filePath = rutaMatch[1];
+                        lineas.splice(rutaMatchIndex, 1); // Quitar la línea de archivo
+                    }
+                }
+
+                // Quitar la primera línea si es el tipo (ts, js, etc.)
+                if (language) {
+                    if (lineas[0].trim() === language) {
+                        lineas.shift();
+                    }
+                }
+
+                bloques.push({
+                    content: lineas.join('\n'),
+                    isCode: true,
+                    filePath: filePath,
+                    language: language
+                });
+
+                indiceInicio = finBloqueCodigo + 3;
+            }
+
+            return bloques;
+        }
+
+        function copiarCodigo(index) {
+            const codigo = document.getElementById(`code-`).innerText;
+            navigator.clipboard.writeText(codigo).then(() => {
+                alert('Código copiado al portapapeles');
+            });
+        }
+
+        function insertarCodigo(index, filePath) {
+            const codigo = document.getElementById(`code-`).innerText;
+            vscode.postMessage({
+                command: 'insertarCodigo',
+                codigo,
+                filePath
+            });
+        }
     </script>
+
+
 </body>
 
 </html>
