@@ -7,207 +7,30 @@
     <title>Consultar Archivos</title>
     <link rel="stylesheet" href="${darkThemeUri}" media="(prefers-color-scheme: dark)">
     <link rel="stylesheet" href="${lightThemeUri}" media="(prefers-color-scheme: light)">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource}; img-src ${webview.cspSource};">
 </head>
 
 <body>
-    <h2>Lista de Archivos del Proyecto</h2>
-    <div id="file-list" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">
+    <div id="file-list" class="file-tree">
         ${fileList}
     </div>
-    <hr>
-    <h3>Escribe tu Consulta</h3>
-    <textarea id="pregunta" rows="5" placeholder="Escribe tu consulta aquí"></textarea>
-    <br>
-    <button id="enviar">Enviar Consulta</button>
-    <hr>
-    <h3>Respuesta</h3>
-    <br>
-    <div id="respuesta-div" class="respuesta-chatgpt"></div>
 
-    <script nonce="${nonce}">
-        const vscode = acquireVsCodeApi();
-        const enviarButton = document.getElementById('enviar');
-        const preguntaInput = document.getElementById('pregunta');
-        const respuestaDiv = document.getElementById('respuesta-div');
-        const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+    <div class="textarea-container">
+        <div class="textarea-wrapper">
+            <textarea id="question" rows="3" placeholder="Escribe tu consulta aquí"></textarea>
+            <button id="send" aria-label="send">
+                <svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" fill="white" viewBox="0 0 24 24">
+                    <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z" />
+                </svg>
+            </button>
+        </div>
+    </div>
 
-        enviarButton.addEventListener('click', async () => {
-            const pregunta = preguntaInput.value;
-            const archivosSeleccionados = Array.from(fileCheckboxes)
-                .filter(checkbox => checkbox.checked)
-                .map(checkbox => {
-                    return {
-                        name: checkbox.dataset.name,
-                        type: checkbox.dataset.type,
-                        path: checkbox.dataset.path
-                    };
-                });
+    <div id="response-container"></div>
 
-            preguntaInput.innerHTML = 'Cargando...';
-
-            if (archivosSeleccionados.length > 0 && pregunta) {
-                vscode.postMessage({
-                    command: 'enviarPregunta',
-                    archivosSeleccionados: archivosSeleccionados,
-                    pregunta: pregunta
-                });
-            } else {
-                alert('Por favor, selecciona al menos un archivo y escribe tu consulta.');
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const folderCheckboxes = document.querySelectorAll('.folder-checkbox');
-            folderCheckboxes.forEach(folderCheckbox => {
-                folderCheckbox.addEventListener('change', (event) => {
-                    const folder = event.target;
-                    const files = folder.closest('li').querySelectorAll('.file-checkbox');
-                    const childFolders = folder.closest('li').querySelectorAll('.folder-checkbox');
-
-                    files.forEach(fileCheckbox => {
-                        fileCheckbox.checked = folder.checked;
-                    });
-
-                    childFolders.forEach(childFolderCheckbox => {
-                        childFolderCheckbox.checked = folder.checked;
-                        const childFiles = childFolderCheckbox.closest('li').querySelectorAll('.file-checkbox');
-
-                        childFiles.forEach(childFileCheckbox => {
-                            childFileCheckbox.checked = folder.checked;
-                        });
-                    });
-                });
-            });
-        });
-
-        window.addEventListener('message', event => {
-            const message = event.data;
-            switch (message.command) {
-                case 'mostrarRespuesta':
-                    const texto = message.respuesta;
-                    const bloques = splitByCodeBlocks(texto);
-
-                    respuestaDiv.innerHTML = bloques.map((b, index) => {
-                        if (b.isCode) {
-                            const escaped = escapeHtmlCode(b.content);
-                            return `
-                                <div class="code-toolbar">
-                                    <div class="code-header"><strong>${b.language || 'Código'}</strong></div>
-                                    <pre><code id="code-" data-file-path="${b.filePath}">${escaped}</code></pre>
-                                    <div class="code-buttons">
-                                        <button onclick="copiarCodigo()">Copiar</button>
-                                        <button onclick="insertarCodigo('', '${b.filePath}')">Insertar</button>
-                                    </div>
-                                </div>
-                            `;
-                        } else {
-                            return `<p>${escapeHtmlText(b.content)}</p><br>`;
-                        }
-                    }).join('');
-                    break;
-            }
-        });
-
-        function escapeHtmlCode(text) {
-            return text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-        }
-
-        function escapeHtmlText(texto) {
-            texto = texto.replace(/`([^`]+)`/g, (match, contenido) => {
-                const escaped = escapeHtmlCode(contenido)
-                return `<code>${escaped}</code>`;
-            });
-
-            texto = texto.replace(/\*\*([^*]+)\*\*/g, (match, contenido) => {
-                const escaped = escapeHtmlCode(contenido);
-                return `<h3>${escaped}</h3>`;
-            });
-
-            return texto.replace(/\n/g, '<br>');
-        }
-
-        function splitByCodeBlocks(texto) {
-            const bloques = [];
-            let indiceInicio = 0;
-
-            while (indiceInicio < texto.length) {
-                const inicioBloqueCodigo = texto.indexOf('```', indiceInicio);
-                if (inicioBloqueCodigo === -1) {
-                    bloques.push({ content: texto.substring(indiceInicio), isCode: false, filePath: '', language: '' });
-                    break;
-                }
-
-                if (inicioBloqueCodigo > indiceInicio) {
-                    bloques.push({ content: texto.substring(indiceInicio, inicioBloqueCodigo), isCode: false, filePath: '', language: '' });
-                }
-
-                // Detectar el tipo de lenguaje después de ```
-                const afterBackticks = texto.substring(inicioBloqueCodigo + 3, texto.indexOf('\n', inicioBloqueCodigo + 3));
-                const languageMatch = afterBackticks.match(/^([a-zA-Z0-9]+)/);
-                const language = languageMatch ? languageMatch[1] : '';
-                const finBloqueCodigo = texto.indexOf('```', inicioBloqueCodigo + 3);
-                if (finBloqueCodigo === -1) {
-                    bloques.push({ content: texto.substring(inicioBloqueCodigo + 3), isCode: true, filePath: '', language });
-                    break;
-                }
-
-                // Extraer y procesar el contenido del bloque de código
-                const codigoBloqueCompleto = texto.substring(inicioBloqueCodigo + 3, finBloqueCodigo);
-                const lineas = codigoBloqueCompleto.split('\n');
-                let filePath = '';
-
-                const rutaMatchIndex = lineas.findIndex(linea => linea.match(/\[Archivo: .* - file - (.*)\]/));
-                if (rutaMatchIndex !== -1) {
-                    const rutaMatch = lineas[rutaMatchIndex].match(/\[Archivo: .* - file - (.*)\]/);
-                    if (rutaMatch) {
-                        filePath = rutaMatch[1];
-                        lineas.splice(rutaMatchIndex, 1); // Quitar la línea de archivo
-                    }
-                }
-
-                // Quitar la primera línea si es el tipo (ts, js, etc.)
-                if (language) {
-                    if (lineas[0].trim() === language) {
-                        lineas.shift();
-                    }
-                }
-
-                bloques.push({
-                    content: lineas.join('\n'),
-                    isCode: true,
-                    filePath: filePath,
-                    language: language
-                });
-
-                indiceInicio = finBloqueCodigo + 3;
-            }
-
-            return bloques;
-        }
-
-        function copiarCodigo(index) {
-            const codigo = document.getElementById(`code-`).innerText;
-            navigator.clipboard.writeText(codigo).then(() => {
-                alert('Código copiado al portapapeles');
-            });
-        }
-
-        function insertarCodigo(index, filePath) {
-            const codigo = document.getElementById(`code-`).innerText;
-            vscode.postMessage({
-                command: 'insertarCodigo',
-                codigo,
-                filePath
-            });
-        }
-    </script>
-
-
+    <script nonce="${nonce}" src="${webviewUri}"></script>
 </body>
 
 </html>

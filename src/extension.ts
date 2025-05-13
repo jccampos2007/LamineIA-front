@@ -10,7 +10,6 @@ dotenv.config({ path: path.resolve(__dirname, './../.env') });
  * @param {vscode.ExtensionContext} context
  */
 export function activate(context: vscode.ExtensionContext) {
-
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(
             'lamine-developer-help.listFiles',
@@ -41,7 +40,13 @@ export class LoginViewProvider implements vscode.WebviewViewProvider {
             ]
         };
 
-        this.loadLoginHtml();
+        const sessionToken = this.context.globalState.get<string>('authToken');
+
+        if (sessionToken) {
+            this.loadMainPanelHtml();
+        } else {
+            this.loadLoginHtml();
+        }
 
         this.setupMessageListener();
 
@@ -60,6 +65,7 @@ export class LoginViewProvider implements vscode.WebviewViewProvider {
             switch (message.command) {
                 case 'login': {
                     const authResult = await authenticateUser(message.email);
+
                     if (authResult.code === 200) {
                         await this.context.globalState.update('authToken', authResult.token);
                         vscode.window.showInformationMessage('Ingreso exitoso.');
@@ -69,17 +75,15 @@ export class LoginViewProvider implements vscode.WebviewViewProvider {
                     }
                     break;
                 }
-
                 case 'enviarPregunta': {
                     const sessionToken = this.context.globalState.get<string>('authToken');
                     const pregunta = message.pregunta;
                     const archivosSeleccionados: fileProyect[] = message.archivosSeleccionados;
+                    const chatResult = await sendChatRequest(sessionToken, pregunta, archivosSeleccionados);
 
                     vscode.window.showInformationMessage(
                         `Pregunta "${pregunta}" enviada para los archivos: ${archivosSeleccionados.join(', ')}`
                     );
-
-                    const chatResult = await sendChatRequest(sessionToken, pregunta, archivosSeleccionados);
 
                     if (chatResult.code === 200 && chatResult.data) {
                         this.webviewView?.webview.postMessage({
@@ -91,6 +95,64 @@ export class LoginViewProvider implements vscode.WebviewViewProvider {
                     } else {
                         vscode.window.showErrorMessage('Error desconocido al enviar la pregunta.');
                     }
+                    break;
+                }
+                case 'insertCode': {
+
+
+                    vscode.window.showInformationMessage(
+                        `Pegar: ${message.content}`
+                    );
+
+                    const editor = vscode.window.activeTextEditor;
+
+                    if (!editor) {
+                        vscode.window.showErrorMessage('No hay un editor activo para insertar código.');
+                        return;
+                    }
+
+                    const content = message.content || '';
+                    editor.edit(editBuilder => {
+                        editBuilder.insert(editor.selection.active, content);
+                    });
+                    break;
+                }
+                case 'applyCode': {
+                    const content = message.content || '';
+                    const filePath = message.filePath;
+                    const workspacePath = vscode.workspace.workspaceFolders![0].uri.fsPath;
+                    const absolutePath = path.join(workspacePath, filePath);
+                    const fileUri = vscode.Uri.file(absolutePath);
+
+                    const dirPath = path.dirname(absolutePath);
+                    if (!fs.existsSync(dirPath)) {
+                        fs.mkdirSync(dirPath, { recursive: true });
+                    }
+
+                    if (!fs.existsSync(absolutePath)) {
+                        fs.writeFileSync(absolutePath, content, 'utf8');
+                        vscode.window.showInformationMessage(`Archivo creado: ${filePath}`);
+                        return;
+                    }
+
+                    try {
+                        const document = await vscode.workspace.openTextDocument(fileUri);
+                        const editor = await vscode.window.showTextDocument(document, { preview: false });
+
+                        const fullRange = new vscode.Range(
+                            document.positionAt(0),
+                            document.positionAt(document.getText().length)
+                        );
+
+                        await editor.edit(editBuilder => {
+                            editBuilder.replace(fullRange, content);
+                        });
+
+                        vscode.window.showInformationMessage(`Código reemplazado en: ${filePath}`);
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Error al abrir o editar el archivo ${filePath}: ${error}`);
+                    }
+
                     break;
                 }
             }
@@ -149,7 +211,7 @@ async function sendChatRequest(token: string | undefined, pregunta: string, arch
     const filesToSend: ChatFileToSend[] = [];
     vscode.window.showInformationMessage(`Leyendo archivo: ${archivos.length} archivos seleccionados ${archivos.map(file => file.path).join(', ')}`);
     for (const file of archivos) {
-        if (file.type === 'file') { // Solo enviamos archivos, no carpetas
+        if (file.type === 'file') {
             try {
                 const workspacePath = vscode.workspace.workspaceFolders![0].uri.fsPath;
                 const absolutePath = path.join(workspacePath, file.path);
@@ -204,13 +266,14 @@ async function sendChatRequest(token: string | undefined, pregunta: string, arch
 }
 
 function getLoginWebviewContent(webview: vscode.Webview, context: vscode.ExtensionContext): string {
-
     const nonce = getNonce();
-    const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'login.css'));
-    const loginHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'login.html').fsPath; // Ruta al archivo HTML
+    const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/css', 'login.css'));
+    const loginHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'login.html').fsPath;
+    const webviewUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/js', 'login.js'));
     let loginHtml = fs.readFileSync(loginHtmlPath, 'utf8');
 
     loginHtml = loginHtml.replace(/\$\{styleUri\}/g, styleUri.toString());
+    loginHtml = loginHtml.replace(/\$\{webviewUri\}/g, webviewUri.toString());
     loginHtml = loginHtml.replace(/\$\{nonce\}/g, nonce);
     loginHtml = loginHtml.replace(/\$\{webview\.cspSource\}/g, webview.cspSource);
 
@@ -219,12 +282,15 @@ function getLoginWebviewContent(webview: vscode.Webview, context: vscode.Extensi
 
 function getMainPanelContent(webview: vscode.Webview, fileStructure: { name: string, type: 'file' | 'folder', path: string, children?: any[] }[], context: vscode.ExtensionContext): string {
     const nonce = getNonce();
-    const darkThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'dark.css'));
-    const lightThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'light.css'));
+    const darkThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/css', 'dark.css'));
+    const lightThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/css', 'light.css'));
+    const webviewUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/js', 'main.js'));
     const mainPanelHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'mainPanel.html').fsPath;
     let mainPanelHtml = fs.readFileSync(mainPanelHtmlPath, 'utf8');
+
     mainPanelHtml = mainPanelHtml.replace(/\$\{darkThemeUri\}/g, darkThemeUri.toString());
     mainPanelHtml = mainPanelHtml.replace(/\$\{lightThemeUri\}/g, lightThemeUri.toString());
+    mainPanelHtml = mainPanelHtml.replace(/\$\{webviewUri\}/g, webviewUri.toString());
     mainPanelHtml = mainPanelHtml.replace(/\$\{nonce\}/g, nonce);
     mainPanelHtml = mainPanelHtml.replace(/\$\{webview\.cspSource\}/g, webview.cspSource);
 
@@ -234,25 +300,41 @@ function getMainPanelContent(webview: vscode.Webview, fileStructure: { name: str
     return mainPanelHtml;
 }
 
-function generateFileListHtml(fileStructure: { name: string, type: 'file' | 'folder', path: string, children?: any[] }[]): string {
+function generateFileListHtml(fileStructure: {
+    name: string;
+    type: 'file' | 'folder';
+    path: string;
+    children?: any[];
+}[]): string {
     return fileStructure.map(item => {
+        const idSafe = item.path.replace(/[^\w\-]/g, '-').toLowerCase();
         if (item.type === 'folder') {
-            const folderId = item.path.replace(/[^\w\-]/g, '-').toLowerCase(); // Mejor usar path para ID
             return `
-                <li class="folder">
-                    <input type="checkbox" class="folder-checkbox" id="${folderId}" data-name="${item.name}" data-type="folder" data-path="${item.path}">
-                    <label for="${folderId}">${item.name}</label>
-                    <ul>${generateFileListHtml(item.children || [])}</ul>
-                </li>`;
+                <div class="folder">
+                    <div class="folder-header" data-folder="${item.path}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-right" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
+                        </svg>
+                        <strong>${item.name}</strong>
+                    </div>
+                    <div class="folder-content">
+                        ${generateFileListHtml(item.children || [])}
+                    </div>
+                </div>
+            `;
         } else {
             return `
-                <li>
-                    <input type="checkbox" class="file-checkbox" 
-                        data-name="${item.name}" 
-                        data-type="file" 
-                        data-path="${item.path}">
-                    ${item.name}
-                </li>`;
+                <div class="file">
+                    <label>
+                        <input type="checkbox"
+                            class="file-checkbox"
+                            data-name="${item.name}"
+                            data-type="file"
+                            data-path="${item.path}">
+                        ${item.name}
+                    </label>
+                </div>
+            `;
         }
     }).join('');
 }
