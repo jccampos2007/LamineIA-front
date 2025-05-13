@@ -7,59 +7,30 @@
     <title>Consultar Archivos</title>
     <link rel="stylesheet" href="${darkThemeUri}" media="(prefers-color-scheme: dark)">
     <link rel="stylesheet" href="${lightThemeUri}" media="(prefers-color-scheme: light)">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource}; img-src ${webview.cspSource};">
 </head>
 
 <body>
-    <h2>Lista de Archivos del Proyecto</h2>
-    <div id="file-list" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">
+    <div id="file-list" class="file-tree">
         ${fileList}
     </div>
-    <hr>
-    <h3>Escribe tu Consulta</h3>
-    <textarea id="pregunta" rows="5" placeholder="Escribe tu consulta aquí"></textarea>
-    <br>
-    <button id="enviar">Enviar Consulta</button>
-    <hr>
-    <h3>Respuesta</h3>
-    <textarea id="respuesta" rows="10" readonly placeholder="La respuesta del servicio aparecerá aquí"></textarea>
 
-    <script nonce="${nonce}">
-        const vscode = acquireVsCodeApi();
-        const enviarButton = document.getElementById('enviar');
-        const preguntaInput = document.getElementById('pregunta');
-        const respuestaInput = document.getElementById('respuesta');
-        const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+    <div class="textarea-container">
+        <div class="textarea-wrapper">
+            <textarea id="question" rows="3" placeholder="Escribe tu consulta aquí"></textarea>
+            <button id="send" aria-label="send">
+                <svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" fill="white" viewBox="0 0 24 24">
+                    <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z" />
+                </svg>
+            </button>
+        </div>
+    </div>
 
-        enviarButton.addEventListener('click', async () => {
-            const pregunta = preguntaInput.value;
-            const archivosSeleccionados = Array.from(fileCheckboxes)
-                .filter(checkbox => checkbox.checked)
-                .map(checkbox => checkbox.value);
+    <div id="response-container"></div>
 
-            if (archivosSeleccionados.length > 0 && pregunta) {
-                vscode.postMessage({
-                    command: 'enviarPregunta',
-                    archivosSeleccionados: archivosSeleccionados,
-                    pregunta: pregunta
-                });
-                preguntaInput.value = '';
-                respuestaInput.value = 'Cargando...';
-            } else {
-                alert('Por favor, selecciona al menos un archivo y escribe tu consulta.');
-            }
-        });
-
-        window.addEventListener('message', event => {
-            const message = event.data;
-            switch (message.command) {
-                case 'mostrarRespuesta':
-                    respuestaInput.value = message.respuesta;
-                    break;
-            }
-        });
-    </script>
+    <script nonce="${nonce}" src="${webviewUri}"></script>
 </body>
 
 </html>

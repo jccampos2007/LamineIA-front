@@ -29,4 +29,12 @@ export interface ChatRequestBody {
 export interface ChatFileToSend {
     filename: string;
     content: string;
+    type: string;
+    path: string;
+}
+
+export interface fileProyect {
+    name: string;
+    type: string;
+    path: string;
 }

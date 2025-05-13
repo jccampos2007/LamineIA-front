@@ -1,0 +1,57 @@
+Aquí te dejo un ejemplo de cómo crear un script dinámico para mostrar el ganador y un JSON con los ganadores:
+
+**Archivo: ganadores.json**
+```json
+[
+  {
+    "id": 1,
+    "nombre": "César"
+  },
+  {
+    "id": 2,
+    "nombre": "Mónica"
+  },
+  {
+    "id": 3,
+    "nombre": "Jorge"
+  }
+]
+```
+**Archivo: script.js**
+```javascript
+// Importar el archivo JSON de ganadores
+fetch('ganadores.json')
+  .then(response => response.json())
+  .then(data => {
+    // Obtener el nombre del ganador aleatorio
+    const ganadorAleatorio = data[Math.floor(Math.random() * data.length)];
+
+    // Mostrar el nombre del ganador en el elemento `<p>`
+    document.getElementById("ganador").innerHTML = ganadorAleatorio.nombre;
+  });
+```
+**Archivo: index.html**
+```html
+<html>
+  <head>
+    <title>My Web Page</title>
+    <link rel="stylesheet" type="text/css" href="../assets/css/style.css">
+  </head>
+  <body>
+    <h1 class="parpadeo">Ganador</h1>
+    <p id="ganador"></p>
+    <script src="script.js"></script>
+  </body>
+</html>
+```
+**Explicación:**
+
+* En el archivo `ganadores.json`, creamos un arreglo de objetos que representan a los ganadores, con campos `id` y `nombre`.
+* En el archivo `script.js`, utilizamos la función `fetch` para obtener el archivo JSON de ganadores. Luego, convertimos la respuesta en formato JSON utilizando el método `json()` y almacenamos el resultado en la variable `data`.
+* Utilizamos el método `Math.floor(Math.random() * data.length)` para generar un número aleatorio entre 0 y la longitud del arreglo de ganadores. Esto nos permite seleccionar un ganador aleatorio.
+* Asignamos el nombre del ganador aleatorio al elemento `<p>` utilizando el método `innerHTML`.
+* En el archivo `index.html`, incluimos el script `script.js` en el elemento `<body>`.
+
+La razón por la que se hace de esta forma es para separar la lógica de negocio (en este caso, la selección del ganador aleatorio) del contenido (el elemento `<p>` que muestra el nombre del ganador). Esto facilita la mantenibilidad y escalabilidad del código, ya que podemos modificar o actualizar la lógica de negocio sin afectar directamente al contenido.
+
+Además, utilizando un archivo JSON separado para almacenar los datos, podemos fácilmente actualizar o agregar nuevos ganadores sin tener que modificar el código JavaScript.
