@@ -67,6 +67,7 @@ window.addEventListener('message', event => {
                                 <button class="btn-insert">Insert</button>
                                 ${block.filePath ? '<button class="btn-apply">Apply</button>' : ''}
                             </div>
+                            <p>${block.id + '' + block.filePath}</p>
                         </div>
                     `;
                 } else {
@@ -126,14 +127,12 @@ textarea.addEventListener('input', () => {
 });
 
 function escapeHtmlCode(text) {
-    return text
+    return text.trim()
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-}
-
-function escapeHtmlCode(text) {
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        .replace(/>/g, "&gt;")
+        .replace(/\\"/g, '"')
+        .replace(/\\'/g, "'");
 }
 
 function escapeHtmlText(text) {
@@ -217,8 +216,7 @@ function splitByCodeBlocks(text) {
                 const path = match[2];
                 const pathCandidate = path || filename;
                 if (!/\s/.test(pathCandidate)) {
-                    filePath = pathCandidate;
-                    // quitamos esa línea del texto previo
+                    filePath = pathCandidate.trim().replace(/\*+$/, '');
                     preLines.pop();
                     newPreText = preLines.join('\n') + '\n';
                 }
@@ -245,7 +243,6 @@ function splitByCodeBlocks(text) {
         const codeBlockRaw = text.slice(codeStart + 3, codeEnd);
         const lines = codeBlockRaw.split('\n');
 
-        // También buscar filePath DENTRO del bloque
         const internalFileLineIndex = lines.findIndex(line => fileRegex.test(line));
         if (internalFileLineIndex !== -1) {
             const match = lines[internalFileLineIndex].match(fileRegex);
@@ -269,8 +266,8 @@ function splitByCodeBlocks(text) {
                 id: `block-${blockId++}`,
                 content: result,
                 isCode: true,
-                filePath,
-                language
+                filePath: filePath,
+                language: language
             });
         }
 

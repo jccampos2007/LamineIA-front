@@ -49,18 +49,20 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
-    "@types/node": "^18.21.0",
-    "@types/mocha": "^10.0.3",
-    "@types/sinon": "^17.0.3",
     "@types/chai": "^4.3.11",
-    "typescript": "^5.3.3",
-    "eslint": "^8.56.0",
-    "@typescript-eslint/parser": "^6.18.1",
+    "@types/dotenv": "^6.1.1",
+    "@types/mocha": "^10.0.3",
+    "@types/node": "^20.1.0",
+    "@types/sinon": "^17.0.3",
+    "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^6.18.1",
-    "mocha": "^10.2.0",
+    "@typescript-eslint/parser": "^6.18.1",
+    "@vscode/test-electron": "^2.3.9",
     "chai": "^4.3.10",
-    "sinon": "^17.0.3",
-    "@vscode/test-electron": "^2.3.9"
+    "dotenv": "^16.5.0",
+    "eslint": "^8.56.0",
+    "mocha": "^10.2.0",
+    "sinon": "^18.0.0",
+    "typescript": "^5.3.3"
   }
 }

@@ -129,6 +129,7 @@ class LoginViewProvider {
                 case 'applyCode': {
                     const content = message.content || '';
                     const filePath = message.filePath;
+                    vscode.window.showInformationMessage(`Archivo: ${filePath}`);
                     const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
                     const absolutePath = path.join(workspacePath, filePath);
                     const fileUri = vscode.Uri.file(absolutePath);
