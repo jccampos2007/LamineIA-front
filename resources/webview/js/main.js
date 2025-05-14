@@ -32,18 +32,17 @@ sendButton.addEventListener('click', async () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    const folderCheckboxes = document.querySelectorAll('.folder-checkbox');
+    document.querySelectorAll('.folder-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const folder = header.closest('.folder');
+            const isOpen = folder.classList.toggle('open');
 
-    folderCheckboxes.forEach(folder => {
-        folder.addEventListener('change', (e) => {
-            const parent = e.target.closest('li');
-            if (!parent) return;
-
-            const allDescendants = parent.querySelectorAll('.folder-checkbox, .file-checkbox');
-
-            allDescendants.forEach(childCheckbox => {
-                childCheckbox.checked = e.target.checked;
-            });
+            const svg = header.querySelector('svg');
+            if (svg) {
+                svg.outerHTML = isOpen
+                    ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>`
+                    : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-right" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/></svg>`;
+            }
         });
     });
 });
@@ -106,19 +105,6 @@ responseContainer.addEventListener('click', (e) => {
     if (button.classList.contains('btn-apply')) {
         vscode.postMessage({ command: 'applyCode', content: code, filePath: filePath });
     }
-});
-
-document.querySelectorAll('.folder-header').forEach(header => {
-    header.addEventListener('click', () => {
-        const folder = header.parentElement;
-        const open = folder.classList.toggle('open');
-        const svg = header.querySelector('svg');
-        if (!svg) return;
-
-        svg.outerHTML = open
-            ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>`
-            : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-right" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/></svg>`;
-    });
 });
 
 textarea.addEventListener('input', () => {

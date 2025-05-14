@@ -34,18 +34,17 @@ sendButton.addEventListener('click', async () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    const folderCheckboxes = document.querySelectorAll('.folder-checkbox');
+    document.querySelectorAll('.folder-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const folder = header.closest('.folder');
+            const isOpen = folder.classList.toggle('open');
 
-    folderCheckboxes.forEach(folder => {
-        folder.addEventListener('change', (e) => {
-            const parent = e.target.closest('li');
-            if (!parent) return;
-
-            const allDescendants = parent.querySelectorAll('.folder-checkbox, .file-checkbox');
-
-            allDescendants.forEach(childCheckbox => {
-                childCheckbox.checked = e.target.checked;
-            });
+            const svg = header.querySelector('svg');
+            if (svg) {
+                svg.outerHTML = isOpen
+                    ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>`
+                    : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-right" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/></svg>`;
+            }
         });
     });
 });
@@ -104,26 +103,18 @@ responseContainer.addEventListener('click', (e) => {
     }
 });
 
-document.querySelectorAll('.folder-header').forEach(header => {
-    header.addEventListener('click', () => {
-        const folder = header.parentElement;
-        const open = folder.classList.toggle('open');
-        const svg = header.querySelector('svg');
-        if (!svg) return;
-
-        svg.outerHTML = open
-            ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>`
-            : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-right" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/></svg>`;
-    });
-});
-
 textarea.addEventListener('input', () => {
     textarea.style.height = 'auto';
     textarea.style.height = textarea.scrollHeight + 'px';
 });
 
 function escapeHtmlCode(text) {
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return text.trim()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\\"/g, '"')
+        .replace(/\\'/g, "'");
 }
 
 function escapeHtmlText(text) {
@@ -178,6 +169,8 @@ function splitByCodeBlocks(text) {
         return parts.join('\n');
     };
 
+    const fileRegex = /^(?:\*\*)?(?:\[\s*)?(?:Archivo:\s*)?([^\s\[\]-]+)\s*- file -\s*([^\s\]]*)(?:\s*\])?(?:\*\*)?$/;
+
     while (index < text.length) {
         const codeStart = text.indexOf('```', index);
         if (codeStart === -1) {
@@ -191,11 +184,31 @@ function splitByCodeBlocks(text) {
             break;
         }
 
-        if (codeStart > index) {
-            const plain = text.slice(index, codeStart);
+        // Busca línea anterior al bloque de código
+        const preText = text.slice(index, codeStart);
+        const preLines = preText.trimEnd().split('\n');
+        let filePath = '';
+        let newPreText = preText;
+
+        if (preLines.length > 0) {
+            const lastLine = preLines[preLines.length - 1];
+            const match = lastLine.match(fileRegex);
+            if (match) {
+                const filename = match[1];
+                const path = match[2];
+                const pathCandidate = path || filename;
+                if (!/\s/.test(pathCandidate)) {
+                    filePath = pathCandidate.trim().replace(/\*+$/, '');
+                    preLines.pop();
+                    newPreText = preLines.join('\n') + '\n';
+                }
+            }
+        }
+
+        if (newPreText.trim()) {
             blocks.push({
                 id: `block-${blockId++}`,
-                content: processPlainText(plain),
+                content: processPlainText(newPreText),
                 isCode: false,
                 filePath: '',
                 language: ''
@@ -209,22 +222,25 @@ function splitByCodeBlocks(text) {
         const langSegment = langLineBreak !== -1 ? text.slice(codeStart + 3, langLineBreak) : '';
         const langMatch = langSegment.match(/^([a-zA-Z0-9]+)/);
         const language = langMatch ? langMatch[1] : '';
-
         const codeBlockRaw = text.slice(codeStart + 3, codeEnd);
         const lines = codeBlockRaw.split('\n');
-        let filePath = '';
 
-        const fileRegex = /\[Archivo: .* - file - (.*?)\]/;
-        const fileLineIndex = lines.findIndex(line => fileRegex.test(line));
-        if (fileLineIndex !== -1) {
-            const match = lines[fileLineIndex].match(fileRegex);
+        const internalFileLineIndex = lines.findIndex(line => fileRegex.test(line));
+        if (internalFileLineIndex !== -1) {
+            const match = lines[internalFileLineIndex].match(fileRegex);
             if (match) {
-                filePath = match[1];
-                lines.splice(fileLineIndex, 1);
+                const filename = match[1];
+                const path = match[2];
+                const pathCandidate = path || filename;
+                if (!/\s/.test(pathCandidate)) {
+                    filePath = pathCandidate;
+                    lines.splice(internalFileLineIndex, 1);
+                }
             }
         }
 
-        if (language && lines[0].trim() === language) lines.shift();
+        // Elimina la línea con el lenguaje si está repetida como primera línea
+        if (language && lines[0]?.trim() === language) lines.shift();
 
         const result = lines.join('\n');
         if (result.trim()) {
@@ -232,8 +248,8 @@ function splitByCodeBlocks(text) {
                 id: `block-${blockId++}`,
                 content: result,
                 isCode: true,
-                filePath,
-                language
+                filePath: filePath,
+                language: language
             });
         }
 

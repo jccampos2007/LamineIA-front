@@ -12,30 +12,51 @@
 <body>
     <div id="file-list" class="file-tree">
         <div class="folder">
-            <div class="folder-header" data-folder="src/index.html">
+            <div class="folder-header" data-folder="assets">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
                     class="bi bi-chevron-right" viewBox="0 0 16 16">
                     <path fill-rule="evenodd"
                         d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708" />
                 </svg>
-                <strong>src</strong>
+                <strong>assets</strong>
             </div>
-            <div class="folder">
-                <div class="folder-header" data-folder="src/index.html">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                        class="bi bi-chevron-right" viewBox="0 0 16 16">
-                        <path fill-rule="evenodd"
-                            d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708" />
-                    </svg>
-                    <strong>src</strong>
+            <div class="folder-content">
+                <div class="folder">
+                    <div class="folder-header" data-folder="image">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                            class="bi bi-chevron-right" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd"
+                                d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708" />
+                        </svg>
+                        <strong>image</strong>
+                    </div>
+                    <div class="folder-content">
+                        <div class="file">
+                            <label>
+                                <input type="checkbox" class="file-checkbox" data-name="${item.name}" data-type="file"
+                                    data-path="${item.path}">
+                                mi-icono.svg
+                            </label>
+                        </div>
+                    </div>
                 </div>
-                <div class="folder-content">
-                    <div class="file">
-                        <label>
-                            <input type="checkbox" class="file-checkbox" data-name="index.html" data-type="file"
-                                data-path="src/index.html">
-                            index.html
-                        </label>
+                <div class="folder">
+                    <div class="folder-header" data-folder="css">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                            class="bi bi-chevron-right" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd"
+                                d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708" />
+                        </svg>
+                        <strong>css</strong>
+                    </div>
+                    <div class="folder-content">
+                        <div class="file">
+                            <label>
+                                <input type="checkbox" class="file-checkbox" data-name="${item.name}" data-type="file"
+                                    data-path="${item.path}">
+                                style.css
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -203,8 +203,12 @@ code {
     display: none;
 }
 
-.folder.open .folder-content {
-    display: block;
+.folder .folder-content {
+  display: none;
+}
+
+.folder.open > .folder-content {
+  display: block;
 }
 
 .folder.open .chevron {
