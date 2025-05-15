@@ -5,6 +5,7 @@ const responseContainer = document.getElementById('response-container');
 const fileCheckBoxes = document.querySelectorAll('.file-checkbox');
 const textarea = document.getElementById('question');
 
+
 sendButton.addEventListener('click', async () => {
     const question = questionInput.value;
 
@@ -60,13 +61,12 @@ window.addEventListener('message', event => {
                     return `
                         <div class="code-toolbar">
                             <div class="code-header">${block.language}</div>
-                            <pre><code id="${block.id}" data-file-path="${block.filePath}">${escaped}</code></pre>
+                            <pre><code id="${block.id}" data-file-path="${block.filePath}" class="language-${block.language}">${escaped}</code></pre>
                             <div class="code-buttons" data-code-id="${block.id}">
                                 <button class="btn-copy">Copy</button>
                                 <button class="btn-insert">Insert</button>
                                 ${block.filePath ? '<button class="btn-apply">Apply</button>' : ''}
                             </div>
-                            <p>${block.id + '' + block.filePath}</p>
                         </div>
                     `;
                 } else {
@@ -74,6 +74,7 @@ window.addEventListener('message', event => {
                     return formatted ? `<p>${formatted}</p><br>` : '';
                 }
             }).join('');
+            hljs.highlightAll();
             break;
     }
 });

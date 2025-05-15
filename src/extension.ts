@@ -22,6 +22,7 @@ export function deactivate() { }
 
 export class LoginViewProvider implements vscode.WebviewViewProvider {
     private webviewView?: vscode.WebviewView;
+    private panelLoaded = false;
 
     constructor(private readonly context: vscode.ExtensionContext) { }
 
@@ -285,13 +286,17 @@ function getMainPanelContent(webview: vscode.Webview, fileStructure: { name: str
     const nonce = getNonce();
     const darkThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/css', 'dark.css'));
     const lightThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/css', 'light.css'));
+    const highlightCss = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/css', 'github.min.css'));
     const webviewUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/js', 'main.js'));
+    const highlightJs = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/js', 'highlight.min.js'));
     const mainPanelHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'mainPanel.html').fsPath;
     let mainPanelHtml = fs.readFileSync(mainPanelHtmlPath, 'utf8');
 
     mainPanelHtml = mainPanelHtml.replace(/\$\{darkThemeUri\}/g, darkThemeUri.toString());
     mainPanelHtml = mainPanelHtml.replace(/\$\{lightThemeUri\}/g, lightThemeUri.toString());
+    mainPanelHtml = mainPanelHtml.replace(/\$\{highlightCss\}/g, highlightCss.toString());
     mainPanelHtml = mainPanelHtml.replace(/\$\{webviewUri\}/g, webviewUri.toString());
+    mainPanelHtml = mainPanelHtml.replace(/\$\{highlightJs\}/g, highlightJs.toString());
     mainPanelHtml = mainPanelHtml.replace(/\$\{nonce\}/g, nonce);
     mainPanelHtml = mainPanelHtml.replace(/\$\{webview\.cspSource\}/g, webview.cspSource);
 

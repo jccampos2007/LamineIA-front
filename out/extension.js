@@ -51,6 +51,7 @@ function deactivate() { }
 class LoginViewProvider {
     context;
     webviewView;
+    panelLoaded = false;
     constructor(context) {
         this.context = context;
     }
@@ -62,12 +63,15 @@ class LoginViewProvider {
                 vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'webview')
             ]
         };
-        const sessionToken = this.context.globalState.get('authToken');
-        if (sessionToken) {
-            this.loadMainPanelHtml();
-        }
-        else {
-            this.loadLoginHtml();
+        if (!this.panelLoaded) {
+            const sessionToken = this.context.globalState.get('authToken');
+            if (sessionToken) {
+                this.loadMainPanelHtml();
+            }
+            else {
+                this.loadLoginHtml();
+            }
+            this.panelLoaded = true;
         }
         this.setupMessageListener();
     }
@@ -270,12 +274,16 @@ function getMainPanelContent(webview, fileStructure, context) {
     const nonce = getNonce();
     const darkThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/css', 'dark.css'));
     const lightThemeUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/css', 'light.css'));
+    const highlightCss = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/css', 'github.min.css'));
     const webviewUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/js', 'main.js'));
+    const highlightJs = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'resources/webview/js', 'highlight.min.js'));
     const mainPanelHtmlPath = vscode.Uri.joinPath(context.extensionUri, 'resources/webview', 'mainPanel.html').fsPath;
     let mainPanelHtml = fs.readFileSync(mainPanelHtmlPath, 'utf8');
     mainPanelHtml = mainPanelHtml.replace(/\$\{darkThemeUri\}/g, darkThemeUri.toString());
     mainPanelHtml = mainPanelHtml.replace(/\$\{lightThemeUri\}/g, lightThemeUri.toString());
+    mainPanelHtml = mainPanelHtml.replace(/\$\{highlightCss\}/g, highlightCss.toString());
     mainPanelHtml = mainPanelHtml.replace(/\$\{webviewUri\}/g, webviewUri.toString());
+    mainPanelHtml = mainPanelHtml.replace(/\$\{highlightJs\}/g, highlightJs.toString());
     mainPanelHtml = mainPanelHtml.replace(/\$\{nonce\}/g, nonce);
     mainPanelHtml = mainPanelHtml.replace(/\$\{webview\.cspSource\}/g, webview.cspSource);
     const fileListHtml = generateFileListHtml(fileStructure);

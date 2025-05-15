@@ -22,12 +22,26 @@ sendButton.addEventListener('click', async () => {
 
     questionInput.innerHTML = 'Loading...';
 
-    if (selectedFiles.length > 0 && pregunta) {
-        vscode.postMessage({
-            command: 'enviarPregunta',
-            archivosSeleccionados: selectedFiles,
-            pregunta: question
-        });
+    if (selectedFiles.length > 0 && question) {
+        fetch('response.text', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json' // Este encabezado realmente no es necesario si solo haces GET
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta: ' + response.status);
+                }
+                return response.text(); // Convertir la respuesta a texto plano
+            })
+            .then(data => {
+                console.log('Texto recibido:', data);
+                handleResponse(data); // Aquí tienes el texto como string
+            })
+            .catch(error => {
+                console.error('Error al obtener o procesar el texto:', error);
+            });
     } else {
         alert('Please select at least one file and enter your question.');
     }
@@ -50,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function handleResponse(event) {
-    const text = event.data;
+    const text = event;
     const blocks = splitByCodeBlocks(text);
 
     responseContainer.innerHTML = blocks.map(block => {
@@ -59,7 +73,7 @@ function handleResponse(event) {
             return `
                 <div class="code-toolbar">
                     <div class="code-header">${block.language}</div>
-                    <pre><code id="${block.id}" data-file-path="${block.filePath}">${escaped}</code></pre>
+                    <pre><code id="${block.id}" data-file-path="${block.filePath}" class="language-${block.language}">${escaped}</code></pre>
                     <div class="code-buttons" data-code-id="${block.id}">
                         <button class="btn-copy">Copy</button>
                         <button class="btn-insert">Insert</button>
@@ -72,6 +86,7 @@ function handleResponse(event) {
             return formatted ? `<p>${formatted}</p><br>` : '';
         }
     }).join('');
+    hljs.highlightAll();
 }
 
 responseContainer.addEventListener('click', (e) => {
@@ -109,7 +124,7 @@ textarea.addEventListener('input', () => {
 });
 
 function escapeHtmlCode(text) {
-    return text.trim()
+    return '\n' + text.trim()
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
@@ -131,6 +146,8 @@ function splitByCodeBlocks(text) {
     const blocks = [];
     let index = 0;
     let blockId = 0;
+
+    console.log('Splitting text into code blocks:', typeof text, text);
 
     const processPlainText = (plain) => {
         const lines = plain.split('\n');
